@@ -362,6 +362,7 @@ mod uninit_vec;
 mod unit_return_expecting_ord;
 mod unit_types;
 mod unnamed_address;
+mod unneccessary_literal_bound;
 mod unnecessary_box_returns;
 mod unnecessary_map_on_constructor;
 mod unnecessary_owned_empty_strings;
@@ -942,5 +943,6 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
     store.register_late_pass(move |_| Box::new(manual_div_ceil::ManualDivCeil::new(conf)));
     store.register_late_pass(|_| Box::new(manual_is_power_of_two::ManualIsPowerOfTwo));
     store.register_late_pass(|_| Box::new(non_zero_suggestions::NonZeroSuggestions));
+    store.register_late_pass(|_| Box::new(unneccessary_literal_bound::UnneccessaryLiteralBound));
     // add lints here, do not remove this comment, it's used in `new_lint`
 }
