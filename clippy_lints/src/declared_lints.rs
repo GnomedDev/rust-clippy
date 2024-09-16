@@ -720,6 +720,7 @@ pub static LINTS: &[&crate::LintInfo] = &[
     crate::types::REDUNDANT_ALLOCATION_INFO,
     crate::types::TYPE_COMPLEXITY_INFO,
     crate::types::VEC_BOX_INFO,
+    crate::unbounded_lifetime::UNBOUNDED_LIFETIME_INFO,
     crate::unconditional_recursion::UNCONDITIONAL_RECURSION_INFO,
     crate::undocumented_unsafe_blocks::UNDOCUMENTED_UNSAFE_BLOCKS_INFO,
     crate::undocumented_unsafe_blocks::UNNECESSARY_SAFETY_COMMENT_INFO,
