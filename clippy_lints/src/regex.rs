@@ -3,9 +3,9 @@ use std::fmt::Display;
 use clippy_utils::consts::{ConstEvalCtxt, Constant};
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
 use clippy_utils::source::SpanRangeExt;
-use clippy_utils::{def_path_def_ids, path_def_id, paths};
+use clippy_utils::{def_path_res_in_crates, path_def_id, paths};
 use rustc_ast::ast::{LitKind, StrStyle};
-use rustc_hir::def_id::DefIdMap;
+use rustc_hir::def_id::{CrateNum, DefIdMap};
 use rustc_hir::{BorrowKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
@@ -72,14 +72,20 @@ impl_lint_pass!(Regex => [INVALID_REGEX, TRIVIAL_REGEX]);
 
 impl<'tcx> LateLintPass<'tcx> for Regex {
     fn check_crate(&mut self, cx: &LateContext<'tcx>) {
+        let regex_crates: Vec<_> = clippy_utils::find_crates(cx.tcx, sym!(regex))
+            .map(CrateNum::as_def_id)
+            .collect();
+
         // We don't use `match_def_path` here because that relies on matching the exact path, which changed
         // between regex 1.8 and 1.9
         //
-        // `def_path_def_ids` will resolve through re-exports but is relatively heavy, so we only perform
-        // the operation once and store the results
+        // `def_path_res_in_crates` will resolve through re-exports but is relatively heavy, so we only
+        // perform the operation once and store the results
         let mut resolve = |path, kind| {
-            for id in def_path_def_ids(cx.tcx, path) {
-                self.definitions.insert(id, kind);
+            for res in def_path_res_in_crates(cx.tcx, regex_crates.iter().copied(), path) {
+                if let Some(id) = res.opt_def_id() {
+                    self.definitions.insert(id, kind);
+                }
             }
         };
 
