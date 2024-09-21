@@ -673,6 +673,14 @@ fn item_children_by_name(tcx: TyCtxt<'_>, def_id: DefId, name: Symbol) -> Vec<Re
     }
 }
 
+/// Finds the crates called `name`, may be multiple due to multiple major versions.
+pub fn find_crates(tcx: TyCtxt<'_>, name: Symbol) -> impl Iterator<Item = CrateNum> + '_ {
+    tcx.crates(())
+        .iter()
+        .copied()
+        .filter(move |&num| tcx.crate_name(num) == name)
+}
+
 /// Resolves a def path like `std::vec::Vec`.
 ///
 /// Can return multiple resolutions when there are multiple versions of the same crate, e.g.
@@ -683,15 +691,7 @@ fn item_children_by_name(tcx: TyCtxt<'_>, def_id: DefId, name: Symbol) -> Vec<Re
 ///
 /// This function is expensive and should be used sparingly.
 pub fn def_path_res(tcx: TyCtxt<'_>, path: &[&str]) -> Vec<Res> {
-    fn find_crates(tcx: TyCtxt<'_>, name: Symbol) -> impl Iterator<Item = DefId> + '_ {
-        tcx.crates(())
-            .iter()
-            .copied()
-            .filter(move |&num| tcx.crate_name(num) == name)
-            .map(CrateNum::as_def_id)
-    }
-
-    let (base, mut path) = match *path {
+    let (base, path) = match *path {
         [primitive] => {
             return vec![PrimTy::from_name(Symbol::intern(primitive)).map_or(Res::Err, Res::PrimTy)];
         },
@@ -708,11 +708,18 @@ pub fn def_path_res(tcx: TyCtxt<'_>, path: &[&str]) -> Vec<Res> {
     };
 
     let starts = find_primitive_impls(tcx, base)
-        .chain(find_crates(tcx, base_sym))
-        .chain(local_crate)
-        .map(|id| Res::Def(tcx.def_kind(id), id));
+        .chain(find_crates(tcx, base_sym).map(CrateNum::as_def_id))
+        .chain(local_crate);
 
-    let mut resolutions: Vec<Res> = starts.collect();
+    def_path_res_in_crates(tcx, starts, path)
+}
+
+/// Resolves a def path like `vec::Vec` with the crate `std`.
+///
+/// This is lighter than [`def_path_res`], and should be called with [`find_crates`] looking up items
+/// from the same crate repeatedly, although should still be used sparingly.
+pub fn def_path_res_in_crates(tcx: TyCtxt<'_>, crates: impl Iterator<Item = DefId>, mut path: &[&str]) -> Vec<Res> {
+    let mut resolutions: Vec<Res> = crates.map(|id| Res::Def(tcx.def_kind(id), id)).collect();
 
     while let [segment, rest @ ..] = path {
         path = rest;
