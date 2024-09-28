@@ -64,11 +64,21 @@ msrv_aliases! {
     1,15,0 { MAYBE_BOUND_IN_WHERE }
 }
 
+#[derive(Debug, Clone)]
+enum MsrvInner {
+    One(RustcVersion),
+    Stacked(Vec<RustcVersion>),
+}
+
+impl Default for MsrvInner {
+    fn default() -> Self {
+        Self::Stacked(Vec::new())
+    }
+}
+
 /// Tracks the current MSRV from `clippy.toml`, `Cargo.toml` or set via `#[clippy::msrv]`
 #[derive(Debug, Clone)]
-pub struct Msrv {
-    stack: Vec<RustcVersion>,
-}
+pub struct Msrv(MsrvInner);
 
 impl fmt::Display for Msrv {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -87,14 +97,14 @@ impl<'de> Deserialize<'de> for Msrv {
     {
         let v = String::deserialize(deserializer)?;
         parse_version(Symbol::intern(&v))
-            .map(|v| Msrv { stack: vec![v] })
+            .map(|v| Msrv(MsrvInner::One(v)))
             .ok_or_else(|| serde::de::Error::custom("not a valid Rust version"))
     }
 }
 
 impl Msrv {
     pub fn empty() -> Msrv {
-        Msrv { stack: Vec::new() }
+        Msrv(MsrvInner::Stacked(Vec::new()))
     }
 
     pub fn read_cargo(&mut self, sess: &Session) {
@@ -103,7 +113,7 @@ impl Msrv {
             .and_then(|v| parse_version(Symbol::intern(&v)));
 
         match (self.current(), cargo_msrv) {
-            (None, Some(cargo_msrv)) => self.stack = vec![cargo_msrv],
+            (None, Some(cargo_msrv)) => self.0 = MsrvInner::One(cargo_msrv),
             (Some(clippy_msrv), Some(cargo_msrv)) => {
                 if clippy_msrv != cargo_msrv {
                     sess.dcx().warn(format!(
@@ -116,7 +126,10 @@ impl Msrv {
     }
 
     pub fn current(&self) -> Option<RustcVersion> {
-        self.stack.last().copied()
+        match &self.0 {
+            MsrvInner::One(ver) => Some(*ver),
+            MsrvInner::Stacked(vec) => vec.last().copied(),
+        }
     }
 
     pub fn meets(&self, required: RustcVersion) -> bool {
@@ -152,13 +165,26 @@ impl Msrv {
 
     pub fn check_attributes(&mut self, sess: &Session, attrs: &[Attribute]) {
         if let Some(version) = Self::parse_attr(sess, attrs) {
-            self.stack.push(version);
+            self.0 = match std::mem::take(&mut self.0) {
+                MsrvInner::Stacked(stack) if stack.is_empty() && stack.capacity() == 0 => MsrvInner::One(version),
+                MsrvInner::One(old) => MsrvInner::Stacked(vec![old, version]),
+                MsrvInner::Stacked(mut stack) => {
+                    stack.push(version);
+                    MsrvInner::Stacked(stack)
+                },
+            };
         }
     }
 
     pub fn check_attributes_post(&mut self, sess: &Session, attrs: &[Attribute]) {
         if Self::parse_attr(sess, attrs).is_some() {
-            self.stack.pop();
+            self.0 = match std::mem::take(&mut self.0) {
+                MsrvInner::One(_) => MsrvInner::Stacked(Vec::new()),
+                MsrvInner::Stacked(mut vec) => {
+                    vec.pop();
+                    MsrvInner::Stacked(vec)
+                },
+            }
         }
     }
 }
