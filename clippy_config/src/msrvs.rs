@@ -4,6 +4,7 @@ use rustc_session::{RustcVersion, Session};
 use rustc_span::{Symbol, sym};
 use serde::Deserialize;
 use std::fmt;
+use thin_vec::{ThinVec, thin_vec};
 
 macro_rules! msrv_aliases {
     ($($major:literal,$minor:literal,$patch:literal {
@@ -67,12 +68,12 @@ msrv_aliases! {
 #[derive(Debug, Clone)]
 enum MsrvInner {
     One(RustcVersion),
-    Stacked(Vec<RustcVersion>),
+    Stacked(ThinVec<RustcVersion>),
 }
 
 impl Default for MsrvInner {
     fn default() -> Self {
-        Self::Stacked(Vec::new())
+        Self::Stacked(ThinVec::new())
     }
 }
 
@@ -104,7 +105,7 @@ impl<'de> Deserialize<'de> for Msrv {
 
 impl Msrv {
     pub fn empty() -> Msrv {
-        Msrv(MsrvInner::Stacked(Vec::new()))
+        Msrv(MsrvInner::Stacked(ThinVec::new()))
     }
 
     pub fn read_cargo(&mut self, sess: &Session) {
@@ -167,7 +168,7 @@ impl Msrv {
         if let Some(version) = Self::parse_attr(sess, attrs) {
             self.0 = match std::mem::take(&mut self.0) {
                 MsrvInner::Stacked(stack) if stack.is_empty() && stack.capacity() == 0 => MsrvInner::One(version),
-                MsrvInner::One(old) => MsrvInner::Stacked(vec![old, version]),
+                MsrvInner::One(old) => MsrvInner::Stacked(thin_vec![old, version]),
                 MsrvInner::Stacked(mut stack) => {
                     stack.push(version);
                     MsrvInner::Stacked(stack)
@@ -179,7 +180,7 @@ impl Msrv {
     pub fn check_attributes_post(&mut self, sess: &Session, attrs: &[Attribute]) {
         if Self::parse_attr(sess, attrs).is_some() {
             self.0 = match std::mem::take(&mut self.0) {
-                MsrvInner::One(_) => MsrvInner::Stacked(Vec::new()),
+                MsrvInner::One(_) => MsrvInner::Stacked(ThinVec::new()),
                 MsrvInner::Stacked(mut vec) => {
                     vec.pop();
                     MsrvInner::Stacked(vec)
