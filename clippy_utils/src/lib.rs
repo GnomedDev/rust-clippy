@@ -84,7 +84,7 @@ pub use self::check_proc_macro::{is_from_proc_macro, is_span_if, is_span_match};
 pub use self::hir_utils::{
     HirEqInterExpr, SpanlessEq, SpanlessHash, both, count_eq, eq_expr_value, hash_expr, hash_stmt, is_bool, over,
 };
-pub use returns::{ReturnVisitor, visit_returns};
+pub use returns::{ReturnType, ReturnVisitor, visit_returns};
 
 use core::mem;
 use core::ops::ControlFlow;
