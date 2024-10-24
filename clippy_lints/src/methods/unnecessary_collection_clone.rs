@@ -1,4 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
+use clippy_utils::is_path_mutable;
 use clippy_utils::source::snippet_with_applicability;
 use clippy_utils::ty::{deref_chain, get_inherent_method, implements_trait, make_normalized_projection};
 use rustc_errors::Applicability;
@@ -30,6 +31,8 @@ pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>, recv: &Expr<'_>) {
 
     // If the call before `into_iter` is `.clone()`
     if let Some(("clone", collection_expr, [], _, _)) = method_call(recv)
+        // and the binding being cloned is not mutable
+        && !is_path_mutable(cx, collection_expr).unwrap_or(false)
         // and the result of `into_iter` is an Iterator
         && let Some(&iterator_def_id) = diagnostic_items.name_to_id.get(&sym::Iterator)
         && let expr_ty = typeck_results.expr_ty(expr)
