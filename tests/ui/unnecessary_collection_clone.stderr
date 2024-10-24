@@ -19,5 +19,11 @@ error: using clone on collection to own iterated items
 LL |     val.clone().into_iter().collect()
    |     ^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `val.iter().cloned()`
 
-error: aborting due to 3 previous errors
+error: using clone on collection to own iterated items
+  --> tests/ui/unnecessary_collection_clone.rs:25:16
+   |
+LL |     for val in vals.clone().into_iter() {
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^ help: replace with: `vals.iter().cloned()`
+
+error: aborting due to 4 previous errors
 
