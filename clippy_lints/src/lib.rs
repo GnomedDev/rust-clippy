@@ -1,3 +1,4 @@
+#![deny(clippy::missing_const_for_expr)]
 #![feature(array_windows)]
 #![feature(binary_heap_into_iter_sorted)]
 #![feature(box_patterns)]
@@ -232,6 +233,7 @@ mod misc_early;
 mod mismatching_type_param_order;
 mod missing_assert_message;
 mod missing_asserts_for_indexing;
+mod missing_const_for_expr;
 mod missing_const_for_fn;
 mod missing_const_for_thread_local;
 mod missing_doc;
@@ -951,5 +953,6 @@ pub fn register_lints(store: &mut rustc_lint::LintStore, conf: &'static Conf) {
     store.register_late_pass(|_| Box::new(manual_ignore_case_cmp::ManualIgnoreCaseCmp));
     store.register_late_pass(|_| Box::new(unnecessary_literal_bound::UnnecessaryLiteralBound));
     store.register_late_pass(move |_| Box::new(arbitrary_source_item_ordering::ArbitrarySourceItemOrdering::new(conf)));
+    store.register_late_pass(|_| Box::new(missing_const_for_expr::MissingConstForExpr));
     // add lints here, do not remove this comment, it's used in `new_lint`
 }
